@@ -116,6 +116,7 @@ uint8_t lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW; // Set when the LCD needs to 
 
   const float manual_feedrate_mm_m[] = MANUAL_FEEDRATE;
   void lcd_main_menu();
+  void lcd_main_menu_pete();
   void lcd_tune_menu();
   void lcd_prepare_menu();
   void lcd_move_menu();
@@ -506,7 +507,7 @@ void lcd_status_screen() {
           false
         #endif
       );
-      lcd_goto_screen(lcd_main_menu);
+      lcd_goto_screen(lcd_main_menu_pete);
     }
 
     #if ENABLED(ULTIPANEL_FEEDMULTIPLY)
@@ -606,6 +607,57 @@ void kill_screen(const char* lcd_msg) {
    *
    */
 
+  float move_menu_scale;
+  void lcd_move_x();
+  void lcd_move_y();
+  void lcd_move_z();
+
+  void lcd_main_menu_pete() {
+    START_MENU();
+    MENU_BACK(MSG_WATCH);
+
+    #if ENABLED(SDSUPPORT)
+      if (card.cardOK) {
+        if (card.isFileOpen()) {
+          if (card.sdprinting)
+            MENU_ITEM(function, MSG_PAUSE_PRINT, lcd_sdcard_pause);
+          else
+            MENU_ITEM(function, MSG_RESUME_PRINT, lcd_sdcard_resume);
+          MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
+        }
+        else {
+          MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_menu);
+          #if !PIN_EXISTS(SD_DETECT)
+            MENU_ITEM(gcode, MSG_CNG_SDCARD, PSTR("M21"));  // SD-card changed by user
+          #endif
+        }
+      }
+      else {
+        MENU_ITEM(submenu, MSG_NO_CARD, lcd_sdcard_menu);
+        #if !PIN_EXISTS(SD_DETECT)
+          MENU_ITEM(gcode, MSG_INIT_SDCARD, PSTR("M21")); // Manually initialize the SD-card via user interface
+        #endif
+      }
+    #endif //SDSUPPORT
+
+    // Temperature Menu
+    MENU_ITEM(submenu, MSG_TEMPERATURE, lcd_control_temperature_menu);
+
+    // Disable Steppers
+    MENU_ITEM(gcode, MSG_DISABLE_STEPPERS, PSTR("M84"));
+
+    // Auto Home
+    MENU_ITEM(gcode, MSG_AUTO_HOME, PSTR("G28"));
+
+    // Move X, Y, Z
+    move_menu_scale = 0.1;
+    MENU_ITEM(submenu, MSG_MOVE_X, lcd_move_x);
+    MENU_ITEM(submenu, MSG_MOVE_Y, lcd_move_y);
+    MENU_ITEM(submenu, MSG_MOVE_Z, lcd_move_z);
+
+    END_MENU();
+  }
+  
   void lcd_main_menu() {
     START_MENU();
     MENU_BACK(MSG_WATCH);
@@ -1368,8 +1420,6 @@ void kill_screen(const char* lcd_msg) {
     }
 
   #endif // DELTA_CALIBRATION_MENU
-
-  float move_menu_scale;
 
   /**
    * If the most recent manual move hasn't been fed to the planner yet,
